@@ -54,7 +54,9 @@ export class BooksLesson extends Lesson {
   }
 
   override generate() {
-    return generateFragment(this.settings, wordSequence(this.wordList, this));
+    return generateFragment(this.settings, wordSequence(this.wordList, this), {
+      repeatWords: this.settings.get(lessonProps.repeatWords),
+    });
   }
 
   #flattenContent(content: Content) {

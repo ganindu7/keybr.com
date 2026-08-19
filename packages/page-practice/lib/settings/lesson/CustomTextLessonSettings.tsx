@@ -19,6 +19,7 @@ import { type ReactNode, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { exampleTexts } from "./example-texts.ts";
 import { LessonLengthProp } from "./LessonLengthProp.tsx";
+import { RepeatWordsProp } from "./RepeatWordsProp.tsx";
 import { TargetSpeedProp } from "./TargetSpeedProp.tsx";
 
 export function CustomTextLessonSettings({
@@ -53,6 +54,7 @@ export function CustomTextLessonSettings({
         <CustomTextProcessing />
         <TargetSpeedProp />
         <LessonLengthProp />
+        <RepeatWordsProp />
       </FieldSet>
     </>
   );

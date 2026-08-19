@@ -12,6 +12,7 @@ import {
 } from "@keybr/widget";
 import { type ReactNode } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { RepeatWordsProp } from "./RepeatWordsProp.tsx";
 
 export function CodeLessonSettings({
   lesson,
@@ -78,6 +79,7 @@ export function CodeLessonSettings({
             );
           })}
         </FieldList>
+        <RepeatWordsProp />
         <Explainer>
           <Description>
             <FormattedMessage
