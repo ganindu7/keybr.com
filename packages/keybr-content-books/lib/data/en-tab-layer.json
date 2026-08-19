@@ -2,7 +2,7 @@
   [
     "Before you start",
     [
-      "This book is typed on a keyboard with two software layers. Hold Tab with the left little finger and the home row turns into the symbols that code is made of. Hold the right Option key with the right thumb and the left home row becomes 1 to 6, with 7 8 9 0 on m , . / under the right hand. Caps Lock is Escape when tapped and Control when held.",
+      "This book is typed on a keyboard with two software layers. Hold Tab with the left little finger and the home row turns into the symbols that code is made of. Hold the right Option key with the right thumb and a s d f g h j become 1 to 7, with 8 9 0 on m , . under the right hand. Caps Lock is Escape when tapped and Control when held.",
       "The rule for every symbol is the same: the column tells you the key. The right hand carries the characters that used to live on Shift plus the top row: u, i and o give ^, & and *, and j and k give ( and ). The left hand mirrors the number row on the top letter row: w, e, r and t give @, #, $ and %.",
       "Practice is about rhythm, not speed. Hold the layer key down, strike the letter, release both. If you hold Tab on its own for more than a second and let go, nothing is sent. That is by design: a tap is a Tab, a hold is a layer.",
       "Type these warm-up lines exactly. Every bracket and every operator here comes from the layer: f(x) = a[0] + b[1]; total = (price * qty) - discount; if (ok) { run(); } else { stop(); }",
@@ -58,7 +58,7 @@
   [
     "Numbers under the right thumb",
     [
-      "Hold the right Option key with your right thumb: a s d f g h give 1 2 3 4 5 6, and m , . / give 7 8 9 0. The left hand is the number row dropped one row down; the right hand uses the bottom row, which is where the fingers already rest when the thumb is on Option. Because Option is a real modifier there is no timing to get wrong.",
+      "Hold the right Option key with your right thumb: a s d f g h j give 1 2 3 4 5 6 7, and m , . give 8 9 0. The left hand is the number row dropped one row down; on the right, 7 stays on j where the index finger finds it by touch, and the last three digits sit on the bottom row, where the fingers already rest when the thumb is on Option. Because Option is a real modifier there is no timing to get wrong.",
       "1 2 3 4 5 6 7 8 9 0 10 100 1000 2026",
       "x[0] x[1] y[10] z[99] a[0][1] b[2][3]",
       "v1.2.3 v16.1.0 3.14159 0.5 2.718 10e3 1e-6",
@@ -67,7 +67,7 @@
       "for i in range(10): print(i * 2)",
       "sleep 0.25; timeout 30; retry 3; limit 100",
       "i < 10 && j > 0 || k == 5 ? a[1] : b[0]",
-      "Dates, versions, ports, indices and loop bounds are where most digits in code come from. Type this chapter slowly and do not look down; the thumb finds Option by touch, the left fingers stay home and the right fingers drop one row."
+      "Dates, versions, ports, indices and loop bounds are where most digits in code come from. Type this chapter slowly and do not look down; the thumb finds Option by touch, the left fingers stay home, j is 7, and the right fingers drop one row for 8 9 0."
     ]
   ],
   [
