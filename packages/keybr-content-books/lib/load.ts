@@ -26,6 +26,22 @@ export async function loadContent(book: Book): Promise<Content> {
           { with: { type: "json" } }
         )
       ).default as any;
+    case Book.EN_TAB_LAYER:
+      return (
+        await import(
+          /* webpackChunkName: "book-en-tab-layer" */
+          "./data/en-tab-layer.json",
+          { with: { type: "json" } }
+        )
+      ).default as any;
+    case Book.EN_BUILD_A_GPT:
+      return (
+        await import(
+          /* webpackChunkName: "book-en-build-a-gpt" */
+          "./data/en-build-a-gpt.json",
+          { with: { type: "json" } }
+        )
+      ).default as any;
     case Book.ES_MARIANELA:
       return (
         await import(

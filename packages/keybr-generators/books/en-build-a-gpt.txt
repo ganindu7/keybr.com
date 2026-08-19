@@ -1,0 +1,1614 @@
+# About this book
+
+This book is two small\, famous programs by Andrej Karpathy\, typed line by line\: micrograd\, a scalar autograd engine and a tiny neural network library in about 150 lines\, and nanoGPT\, a complete GPT language model with its training and sampling scripts\. Together they are the shortest honest answer to the question of how a transformer is built and trained\.
+
+Every paragraph is one line of the original source\, comments and docstrings included\, because the comments are the lesson\. Indentation is implied by the code itself\; read each def and class as a new level\. Both projects are MIT licensed\; the licence text is the next chapter so that it travels with the code\.
+
+Read micrograd first\: Value objects carry data and grad\, every operation records its parents and a backward function\, and backward\(\) walks the graph in reverse topological order\. Then nn\.py turns Values into neurons\, layers and an MLP\. After that model\.py is the whole GPT\: LayerNorm\, causal self\-attention\, the MLP block\, the stack of blocks\, weight tying\, the optimizer configuration and generation\. train\.py is the loop around it\, and sample\.py is how you talk to the result\.
+
+Type for understanding\, not speed\. When a line surprises you\, stop and read it again before the next one\. The layer keys carry you through the brackets\, underscores\, equals signs and decorators\; the code carries the ideas\.
+
+# MIT License
+
+micrograd\: Copyright \(c\) 2020 Andrej Karpathy\. nanoGPT\: Copyright \(c\) 2022 Andrej Karpathy\. Both released under the MIT License\, reproduced here\:
+
+Permission is hereby granted\, free of charge\, to any person obtaining a copy of this software and associated documentation files \(the \"Software\"\)\, to deal in the Software without restriction\, including without limitation the rights to use\, copy\, modify\, merge\, publish\, distribute\, sublicense\, and\/or sell copies of the Software\, and to permit persons to whom the Software is furnished to do so\, subject to the following conditions\: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software\.
+
+THE SOFTWARE IS PROVIDED \"AS IS\"\, WITHOUT WARRANTY OF ANY KIND\, EXPRESS OR IMPLIED\, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY\, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT\.
+
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM\, DAMAGES OR OTHER LIABILITY\, WHETHER IN AN ACTION OF CONTRACT\, TORT OR OTHERWISE\, ARISING FROM\, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE\.
+
+# micrograd: engine.py
+
+class Value\:
+
+\"\"\" stores a single scalar value and its gradient \"\"\"
+
+def \_\_init\_\_\(self\, data\, \_children\=\(\)\, \_op\=\'\'\)\:
+
+self\.data \= data
+
+self\.grad \= 0
+
+\# internal variables used for autograd graph construction
+
+self\.\_backward \= lambda\: None
+
+self\.\_prev \= set\(\_children\)
+
+self\.\_op \= \_op \# the op that produced this node\, for graphviz \/ debugging \/ etc
+
+def \_\_add\_\_\(self\, other\)\:
+
+other \= other if isinstance\(other\, Value\) else Value\(other\)
+
+out \= Value\(self\.data \+ other\.data\, \(self\, other\)\, \'\+\'\)
+
+def \_backward\(\)\:
+
+self\.grad \+\= out\.grad
+
+other\.grad \+\= out\.grad
+
+out\.\_backward \= \_backward
+
+return out
+
+def \_\_mul\_\_\(self\, other\)\:
+
+other \= other if isinstance\(other\, Value\) else Value\(other\)
+
+out \= Value\(self\.data \* other\.data\, \(self\, other\)\, \'\*\'\)
+
+def \_backward\(\)\:
+
+self\.grad \+\= other\.data \* out\.grad
+
+other\.grad \+\= self\.data \* out\.grad
+
+out\.\_backward \= \_backward
+
+return out
+
+def \_\_pow\_\_\(self\, other\)\:
+
+assert isinstance\(other\, \(int\, float\)\)\, \"only supporting int\/float powers for now\"
+
+out \= Value\(self\.data\*\*other\, \(self\,\)\, f\'\*\*\{other\}\'\)
+
+def \_backward\(\)\:
+
+self\.grad \+\= \(other \* self\.data\*\*\(other\-1\)\) \* out\.grad
+
+out\.\_backward \= \_backward
+
+return out
+
+def relu\(self\)\:
+
+out \= Value\(0 if self\.data \< 0 else self\.data\, \(self\,\)\, \'ReLU\'\)
+
+def \_backward\(\)\:
+
+self\.grad \+\= \(out\.data \> 0\) \* out\.grad
+
+out\.\_backward \= \_backward
+
+return out
+
+def backward\(self\)\:
+
+\# topological order all of the children in the graph
+
+topo \= \[\]
+
+visited \= set\(\)
+
+def build\_topo\(v\)\:
+
+if v not in visited\:
+
+visited\.add\(v\)
+
+for child in v\.\_prev\:
+
+build\_topo\(child\)
+
+topo\.append\(v\)
+
+build\_topo\(self\)
+
+\# go one variable at a time and apply the chain rule to get its gradient
+
+self\.grad \= 1
+
+for v in reversed\(topo\)\:
+
+v\.\_backward\(\)
+
+def \_\_neg\_\_\(self\)\: \# \-self
+
+return self \* \-1
+
+def \_\_radd\_\_\(self\, other\)\: \# other \+ self
+
+return self \+ other
+
+def \_\_sub\_\_\(self\, other\)\: \# self \- other
+
+return self \+ \(\-other\)
+
+def \_\_rsub\_\_\(self\, other\)\: \# other \- self
+
+return other \+ \(\-self\)
+
+def \_\_rmul\_\_\(self\, other\)\: \# other \* self
+
+return self \* other
+
+def \_\_truediv\_\_\(self\, other\)\: \# self \/ other
+
+return self \* other\*\*\-1
+
+def \_\_rtruediv\_\_\(self\, other\)\: \# other \/ self
+
+return other \* self\*\*\-1
+
+def \_\_repr\_\_\(self\)\:
+
+return f\"Value\(data\=\{self\.data\}\, grad\=\{self\.grad\}\)\"
+
+# micrograd: nn.py
+
+import random
+
+from micrograd\.engine import Value
+
+class Module\:
+
+def zero\_grad\(self\)\:
+
+for p in self\.parameters\(\)\:
+
+p\.grad \= 0
+
+def parameters\(self\)\:
+
+return \[\]
+
+class Neuron\(Module\)\:
+
+def \_\_init\_\_\(self\, nin\, nonlin\=True\)\:
+
+self\.w \= \[Value\(random\.uniform\(\-1\,1\)\) for \_ in range\(nin\)\]
+
+self\.b \= Value\(0\)
+
+self\.nonlin \= nonlin
+
+def \_\_call\_\_\(self\, x\)\:
+
+act \= sum\(\(wi\*xi for wi\,xi in zip\(self\.w\, x\)\)\, self\.b\)
+
+return act\.relu\(\) if self\.nonlin else act
+
+def parameters\(self\)\:
+
+return self\.w \+ \[self\.b\]
+
+def \_\_repr\_\_\(self\)\:
+
+return f\"\{\'ReLU\' if self\.nonlin else \'Linear\'\}Neuron\(\{len\(self\.w\)\}\)\"
+
+class Layer\(Module\)\:
+
+def \_\_init\_\_\(self\, nin\, nout\, \*\*kwargs\)\:
+
+self\.neurons \= \[Neuron\(nin\, \*\*kwargs\) for \_ in range\(nout\)\]
+
+def \_\_call\_\_\(self\, x\)\:
+
+out \= \[n\(x\) for n in self\.neurons\]
+
+return out\[0\] if len\(out\) \=\= 1 else out
+
+def parameters\(self\)\:
+
+return \[p for n in self\.neurons for p in n\.parameters\(\)\]
+
+def \_\_repr\_\_\(self\)\:
+
+return f\"Layer of \[\{\'\, \'\.join\(str\(n\) for n in self\.neurons\)\}\]\"
+
+class MLP\(Module\)\:
+
+def \_\_init\_\_\(self\, nin\, nouts\)\:
+
+sz \= \[nin\] \+ nouts
+
+self\.layers \= \[Layer\(sz\[i\]\, sz\[i\+1\]\, nonlin\=i\!\=len\(nouts\)\-1\) for i in range\(len\(nouts\)\)\]
+
+def \_\_call\_\_\(self\, x\)\:
+
+for layer in self\.layers\:
+
+x \= layer\(x\)
+
+return x
+
+def parameters\(self\)\:
+
+return \[p for layer in self\.layers for p in layer\.parameters\(\)\]
+
+def \_\_repr\_\_\(self\)\:
+
+return f\"MLP of \[\{\'\, \'\.join\(str\(layer\) for layer in self\.layers\)\}\]\"
+
+# nanoGPT: model.py
+
+\"\"\"
+
+Full definition of a GPT Language Model\, all of it in this single file\.
+
+References\:
+
+1\) the official GPT\-2 TensorFlow implementation released by OpenAI\:
+
+https\:\/\/github\.com\/openai\/gpt\-2\/blob\/master\/src\/model\.py
+
+2\) huggingface\/transformers PyTorch implementation\:
+
+https\:\/\/github\.com\/huggingface\/transformers\/blob\/main\/src\/transformers\/models\/gpt2\/modeling\_gpt2\.py
+
+\"\"\"
+
+import math
+
+import inspect
+
+from dataclasses import dataclass
+
+import torch
+
+import torch\.nn as nn
+
+from torch\.nn import functional as F
+
+class LayerNorm\(nn\.Module\)\:
+
+\"\"\" LayerNorm but with an optional bias\. PyTorch doesn\'t support simply bias\=False \"\"\"
+
+def \_\_init\_\_\(self\, ndim\, bias\)\:
+
+super\(\)\.\_\_init\_\_\(\)
+
+self\.weight \= nn\.Parameter\(torch\.ones\(ndim\)\)
+
+self\.bias \= nn\.Parameter\(torch\.zeros\(ndim\)\) if bias else None
+
+def forward\(self\, input\)\:
+
+return F\.layer\_norm\(input\, self\.weight\.shape\, self\.weight\, self\.bias\, 1e\-5\)
+
+class CausalSelfAttention\(nn\.Module\)\:
+
+def \_\_init\_\_\(self\, config\)\:
+
+super\(\)\.\_\_init\_\_\(\)
+
+assert config\.n\_embd \% config\.n\_head \=\= 0
+
+\# key\, query\, value projections for all heads\, but in a batch
+
+self\.c\_attn \= nn\.Linear\(config\.n\_embd\, 3 \* config\.n\_embd\, bias\=config\.bias\)
+
+\# output projection
+
+self\.c\_proj \= nn\.Linear\(config\.n\_embd\, config\.n\_embd\, bias\=config\.bias\)
+
+\# regularization
+
+self\.attn\_dropout \= nn\.Dropout\(config\.dropout\)
+
+self\.resid\_dropout \= nn\.Dropout\(config\.dropout\)
+
+self\.n\_head \= config\.n\_head
+
+self\.n\_embd \= config\.n\_embd
+
+self\.dropout \= config\.dropout
+
+\# flash attention make GPU go brrrrr but support is only in PyTorch \>\= 2\.0
+
+self\.flash \= hasattr\(torch\.nn\.functional\, \'scaled\_dot\_product\_attention\'\)
+
+if not self\.flash\:
+
+print\(\"WARNING\: using slow attention\. Flash Attention requires PyTorch \>\= 2\.0\"\)
+
+\# causal mask to ensure that attention is only applied to the left in the input sequence
+
+self\.register\_buffer\(\"bias\"\, torch\.tril\(torch\.ones\(config\.block\_size\, config\.block\_size\)\)
+
+\.view\(1\, 1\, config\.block\_size\, config\.block\_size\)\)
+
+def forward\(self\, x\)\:
+
+B\, T\, C \= x\.size\(\) \# batch size\, sequence length\, embedding dimensionality \(n\_embd\)
+
+\# calculate query\, key\, values for all heads in batch and move head forward to be the batch dim
+
+q\, k\, v  \= self\.c\_attn\(x\)\.split\(self\.n\_embd\, dim\=2\)
+
+k \= k\.view\(B\, T\, self\.n\_head\, C \/\/ self\.n\_head\)\.transpose\(1\, 2\) \# \(B\, nh\, T\, hs\)
+
+q \= q\.view\(B\, T\, self\.n\_head\, C \/\/ self\.n\_head\)\.transpose\(1\, 2\) \# \(B\, nh\, T\, hs\)
+
+v \= v\.view\(B\, T\, self\.n\_head\, C \/\/ self\.n\_head\)\.transpose\(1\, 2\) \# \(B\, nh\, T\, hs\)
+
+\# causal self\-attention\; Self\-attend\: \(B\, nh\, T\, hs\) x \(B\, nh\, hs\, T\) \-\> \(B\, nh\, T\, T\)
+
+if self\.flash\:
+
+\# efficient attention using Flash Attention CUDA kernels
+
+y \= torch\.nn\.functional\.scaled\_dot\_product\_attention\(q\, k\, v\, attn\_mask\=None\, dropout\_p\=self\.dropout if self\.training else 0\, is\_causal\=True\)
+
+else\:
+
+\# manual implementation of attention
+
+att \= \(q \@ k\.transpose\(\-2\, \-1\)\) \* \(1\.0 \/ math\.sqrt\(k\.size\(\-1\)\)\)
+
+att \= att\.masked\_fill\(self\.bias\[\:\,\:\,\:T\,\:T\] \=\= 0\, float\(\'\-inf\'\)\)
+
+att \= F\.softmax\(att\, dim\=\-1\)
+
+att \= self\.attn\_dropout\(att\)
+
+y \= att \@ v \# \(B\, nh\, T\, T\) x \(B\, nh\, T\, hs\) \-\> \(B\, nh\, T\, hs\)
+
+y \= y\.transpose\(1\, 2\)\.contiguous\(\)\.view\(B\, T\, C\) \# re\-assemble all head outputs side by side
+
+\# output projection
+
+y \= self\.resid\_dropout\(self\.c\_proj\(y\)\)
+
+return y
+
+class MLP\(nn\.Module\)\:
+
+def \_\_init\_\_\(self\, config\)\:
+
+super\(\)\.\_\_init\_\_\(\)
+
+self\.c\_fc    \= nn\.Linear\(config\.n\_embd\, 4 \* config\.n\_embd\, bias\=config\.bias\)
+
+self\.gelu    \= nn\.GELU\(\)
+
+self\.c\_proj  \= nn\.Linear\(4 \* config\.n\_embd\, config\.n\_embd\, bias\=config\.bias\)
+
+self\.dropout \= nn\.Dropout\(config\.dropout\)
+
+def forward\(self\, x\)\:
+
+x \= self\.c\_fc\(x\)
+
+x \= self\.gelu\(x\)
+
+x \= self\.c\_proj\(x\)
+
+x \= self\.dropout\(x\)
+
+return x
+
+class Block\(nn\.Module\)\:
+
+def \_\_init\_\_\(self\, config\)\:
+
+super\(\)\.\_\_init\_\_\(\)
+
+self\.ln\_1 \= LayerNorm\(config\.n\_embd\, bias\=config\.bias\)
+
+self\.attn \= CausalSelfAttention\(config\)
+
+self\.ln\_2 \= LayerNorm\(config\.n\_embd\, bias\=config\.bias\)
+
+self\.mlp \= MLP\(config\)
+
+def forward\(self\, x\)\:
+
+x \= x \+ self\.attn\(self\.ln\_1\(x\)\)
+
+x \= x \+ self\.mlp\(self\.ln\_2\(x\)\)
+
+return x
+
+\@dataclass
+
+class GPTConfig\:
+
+block\_size\: int \= 1024
+
+vocab\_size\: int \= 50304 \# GPT\-2 vocab\_size of 50257\, padded up to nearest multiple of 64 for efficiency
+
+n\_layer\: int \= 12
+
+n\_head\: int \= 12
+
+n\_embd\: int \= 768
+
+dropout\: float \= 0\.0
+
+bias\: bool \= True \# True\: bias in Linears and LayerNorms\, like GPT\-2\. False\: a bit better and faster
+
+class GPT\(nn\.Module\)\:
+
+def \_\_init\_\_\(self\, config\)\:
+
+super\(\)\.\_\_init\_\_\(\)
+
+assert config\.vocab\_size is not None
+
+assert config\.block\_size is not None
+
+self\.config \= config
+
+self\.transformer \= nn\.ModuleDict\(dict\(
+
+wte \= nn\.Embedding\(config\.vocab\_size\, config\.n\_embd\)\,
+
+wpe \= nn\.Embedding\(config\.block\_size\, config\.n\_embd\)\,
+
+drop \= nn\.Dropout\(config\.dropout\)\,
+
+h \= nn\.ModuleList\(\[Block\(config\) for \_ in range\(config\.n\_layer\)\]\)\,
+
+ln\_f \= LayerNorm\(config\.n\_embd\, bias\=config\.bias\)\,
+
+\)\)
+
+self\.lm\_head \= nn\.Linear\(config\.n\_embd\, config\.vocab\_size\, bias\=False\)
+
+\# with weight tying when using torch\.compile\(\) some warnings get generated\:
+
+\# \"UserWarning\: functional\_call was passed multiple values for tied weights\.
+
+\# This behavior is deprecated and will be an error in future versions\"
+
+\# not 100\% sure what this is\, so far seems to be harmless\. TODO investigate
+
+self\.transformer\.wte\.weight \= self\.lm\_head\.weight \# https\:\/\/paperswithcode\.com\/method\/weight\-tying
+
+\# init all weights
+
+self\.apply\(self\.\_init\_weights\)
+
+\# apply special scaled init to the residual projections\, per GPT\-2 paper
+
+for pn\, p in self\.named\_parameters\(\)\:
+
+if pn\.endswith\(\'c\_proj\.weight\'\)\:
+
+torch\.nn\.init\.normal\_\(p\, mean\=0\.0\, std\=0\.02\/math\.sqrt\(2 \* config\.n\_layer\)\)
+
+\# report number of parameters
+
+print\(\"number of parameters\: \%\.2fM\" \% \(self\.get\_num\_params\(\)\/1e6\,\)\)
+
+def get\_num\_params\(self\, non\_embedding\=True\)\:
+
+\"\"\"
+
+Return the number of parameters in the model\.
+
+For non\-embedding count \(default\)\, the position embeddings get subtracted\.
+
+The token embeddings would too\, except due to the parameter sharing these
+
+params are actually used as weights in the final layer\, so we include them\.
+
+\"\"\"
+
+n\_params \= sum\(p\.numel\(\) for p in self\.parameters\(\)\)
+
+if non\_embedding\:
+
+n\_params \-\= self\.transformer\.wpe\.weight\.numel\(\)
+
+return n\_params
+
+def \_init\_weights\(self\, module\)\:
+
+if isinstance\(module\, nn\.Linear\)\:
+
+torch\.nn\.init\.normal\_\(module\.weight\, mean\=0\.0\, std\=0\.02\)
+
+if module\.bias is not None\:
+
+torch\.nn\.init\.zeros\_\(module\.bias\)
+
+elif isinstance\(module\, nn\.Embedding\)\:
+
+torch\.nn\.init\.normal\_\(module\.weight\, mean\=0\.0\, std\=0\.02\)
+
+def forward\(self\, idx\, targets\=None\)\:
+
+device \= idx\.device
+
+b\, t \= idx\.size\(\)
+
+assert t \<\= self\.config\.block\_size\, f\"Cannot forward sequence of length \{t\}\, block size is only \{self\.config\.block\_size\}\"
+
+pos \= torch\.arange\(0\, t\, dtype\=torch\.long\, device\=device\) \# shape \(t\)
+
+\# forward the GPT model itself
+
+tok\_emb \= self\.transformer\.wte\(idx\) \# token embeddings of shape \(b\, t\, n\_embd\)
+
+pos\_emb \= self\.transformer\.wpe\(pos\) \# position embeddings of shape \(t\, n\_embd\)
+
+x \= self\.transformer\.drop\(tok\_emb \+ pos\_emb\)
+
+for block in self\.transformer\.h\:
+
+x \= block\(x\)
+
+x \= self\.transformer\.ln\_f\(x\)
+
+if targets is not None\:
+
+\# if we are given some desired targets also calculate the loss
+
+logits \= self\.lm\_head\(x\)
+
+loss \= F\.cross\_entropy\(logits\.view\(\-1\, logits\.size\(\-1\)\)\, targets\.view\(\-1\)\, ignore\_index\=\-1\)
+
+else\:
+
+\# inference\-time mini\-optimization\: only forward the lm\_head on the very last position
+
+logits \= self\.lm\_head\(x\[\:\, \[\-1\]\, \:\]\) \# note\: using list \[\-1\] to preserve the time dim
+
+loss \= None
+
+return logits\, loss
+
+def crop\_block\_size\(self\, block\_size\)\:
+
+\# model surgery to decrease the block size if necessary
+
+\# e\.g\. we may load the GPT2 pretrained model checkpoint \(block size 1024\)
+
+\# but want to use a smaller block size for some smaller\, simpler model
+
+assert block\_size \<\= self\.config\.block\_size
+
+self\.config\.block\_size \= block\_size
+
+self\.transformer\.wpe\.weight \= nn\.Parameter\(self\.transformer\.wpe\.weight\[\:block\_size\]\)
+
+for block in self\.transformer\.h\:
+
+if hasattr\(block\.attn\, \'bias\'\)\:
+
+block\.attn\.bias \= block\.attn\.bias\[\:\,\:\,\:block\_size\,\:block\_size\]
+
+\@classmethod
+
+def from\_pretrained\(cls\, model\_type\, override\_args\=None\)\:
+
+assert model\_type in \{\'gpt2\'\, \'gpt2\-medium\'\, \'gpt2\-large\'\, \'gpt2\-xl\'\}
+
+override\_args \= override\_args or \{\} \# default to empty dict
+
+\# only dropout can be overridden see more notes below
+
+assert all\(k \=\= \'dropout\' for k in override\_args\)
+
+from transformers import GPT2LMHeadModel
+
+print\(\"loading weights from pretrained gpt\: \%s\" \% model\_type\)
+
+\# n\_layer\, n\_head and n\_embd are determined from model\_type
+
+config\_args \= \{
+
+\'gpt2\'\:         dict\(n\_layer\=12\, n\_head\=12\, n\_embd\=768\)\,  \# 124M params
+
+\'gpt2\-medium\'\:  dict\(n\_layer\=24\, n\_head\=16\, n\_embd\=1024\)\, \# 350M params
+
+\'gpt2\-large\'\:   dict\(n\_layer\=36\, n\_head\=20\, n\_embd\=1280\)\, \# 774M params
+
+\'gpt2\-xl\'\:      dict\(n\_layer\=48\, n\_head\=25\, n\_embd\=1600\)\, \# 1558M params
+
+\}\[model\_type\]
+
+print\(\"forcing vocab\_size\=50257\, block\_size\=1024\, bias\=True\"\)
+
+config\_args\[\'vocab\_size\'\] \= 50257 \# always 50257 for GPT model checkpoints
+
+config\_args\[\'block\_size\'\] \= 1024 \# always 1024 for GPT model checkpoints
+
+config\_args\[\'bias\'\] \= True \# always True for GPT model checkpoints
+
+\# we can override the dropout rate\, if desired
+
+if \'dropout\' in override\_args\:
+
+print\(f\"overriding dropout rate to \{override\_args\[\'dropout\'\]\}\"\)
+
+config\_args\[\'dropout\'\] \= override\_args\[\'dropout\'\]
+
+\# create a from\-scratch initialized minGPT model
+
+config \= GPTConfig\(\*\*config\_args\)
+
+model \= GPT\(config\)
+
+sd \= model\.state\_dict\(\)
+
+sd\_keys \= sd\.keys\(\)
+
+sd\_keys \= \[k for k in sd\_keys if not k\.endswith\(\'\.attn\.bias\'\)\] \# discard this mask \/ buffer\, not a param
+
+\# init a huggingface\/transformers model
+
+model\_hf \= GPT2LMHeadModel\.from\_pretrained\(model\_type\)
+
+sd\_hf \= model\_hf\.state\_dict\(\)
+
+\# copy while ensuring all of the parameters are aligned and match in names and shapes
+
+sd\_keys\_hf \= sd\_hf\.keys\(\)
+
+sd\_keys\_hf \= \[k for k in sd\_keys\_hf if not k\.endswith\(\'\.attn\.masked\_bias\'\)\] \# ignore these\, just a buffer
+
+sd\_keys\_hf \= \[k for k in sd\_keys\_hf if not k\.endswith\(\'\.attn\.bias\'\)\] \# same\, just the mask \(buffer\)
+
+transposed \= \[\'attn\.c\_attn\.weight\'\, \'attn\.c\_proj\.weight\'\, \'mlp\.c\_fc\.weight\'\, \'mlp\.c\_proj\.weight\'\]
+
+\# basically the openai checkpoints use a \"Conv1D\" module\, but we only want to use a vanilla Linear
+
+\# this means that we have to transpose these weights when we import them
+
+assert len\(sd\_keys\_hf\) \=\= len\(sd\_keys\)\, f\"mismatched keys\: \{len\(sd\_keys\_hf\)\} \!\= \{len\(sd\_keys\)\}\"
+
+for k in sd\_keys\_hf\:
+
+if any\(k\.endswith\(w\) for w in transposed\)\:
+
+\# special treatment for the Conv1D weights we need to transpose
+
+assert sd\_hf\[k\]\.shape\[\:\:\-1\] \=\= sd\[k\]\.shape
+
+with torch\.no\_grad\(\)\:
+
+sd\[k\]\.copy\_\(sd\_hf\[k\]\.t\(\)\)
+
+else\:
+
+\# vanilla copy over the other parameters
+
+assert sd\_hf\[k\]\.shape \=\= sd\[k\]\.shape
+
+with torch\.no\_grad\(\)\:
+
+sd\[k\]\.copy\_\(sd\_hf\[k\]\)
+
+return model
+
+def configure\_optimizers\(self\, weight\_decay\, learning\_rate\, betas\, device\_type\)\:
+
+\# start with all of the candidate parameters
+
+param\_dict \= \{pn\: p for pn\, p in self\.named\_parameters\(\)\}
+
+\# filter out those that do not require grad
+
+param\_dict \= \{pn\: p for pn\, p in param\_dict\.items\(\) if p\.requires\_grad\}
+
+\# create optim groups\. Any parameters that is 2D will be weight decayed\, otherwise no\.
+
+\# i\.e\. all weight tensors in matmuls \+ embeddings decay\, all biases and layernorms don\'t\.
+
+decay\_params \= \[p for n\, p in param\_dict\.items\(\) if p\.dim\(\) \>\= 2\]
+
+nodecay\_params \= \[p for n\, p in param\_dict\.items\(\) if p\.dim\(\) \< 2\]
+
+optim\_groups \= \[
+
+\{\'params\'\: decay\_params\, \'weight\_decay\'\: weight\_decay\}\,
+
+\{\'params\'\: nodecay\_params\, \'weight\_decay\'\: 0\.0\}
+
+\]
+
+num\_decay\_params \= sum\(p\.numel\(\) for p in decay\_params\)
+
+num\_nodecay\_params \= sum\(p\.numel\(\) for p in nodecay\_params\)
+
+print\(f\"num decayed parameter tensors\: \{len\(decay\_params\)\}\, with \{num\_decay\_params\:\,\} parameters\"\)
+
+print\(f\"num non\-decayed parameter tensors\: \{len\(nodecay\_params\)\}\, with \{num\_nodecay\_params\:\,\} parameters\"\)
+
+\# Create AdamW optimizer and use the fused version if it is available
+
+fused\_available \= \'fused\' in inspect\.signature\(torch\.optim\.AdamW\)\.parameters
+
+use\_fused \= fused\_available and device\_type \=\= \'cuda\'
+
+extra\_args \= dict\(fused\=True\) if use\_fused else dict\(\)
+
+optimizer \= torch\.optim\.AdamW\(optim\_groups\, lr\=learning\_rate\, betas\=betas\, \*\*extra\_args\)
+
+print\(f\"using fused AdamW\: \{use\_fused\}\"\)
+
+return optimizer
+
+def estimate\_mfu\(self\, fwdbwd\_per\_iter\, dt\)\:
+
+\"\"\" estimate model flops utilization \(MFU\) in units of A100 bfloat16 peak FLOPS \"\"\"
+
+\# first estimate the number of flops we do per iteration\.
+
+\# see PaLM paper Appendix B as ref\: https\:\/\/arxiv\.org\/abs\/2204\.02311
+
+N \= self\.get\_num\_params\(\)
+
+cfg \= self\.config
+
+L\, H\, Q\, T \= cfg\.n\_layer\, cfg\.n\_head\, cfg\.n\_embd\/\/cfg\.n\_head\, cfg\.block\_size
+
+flops\_per\_token \= 6\*N \+ 12\*L\*H\*Q\*T
+
+flops\_per\_fwdbwd \= flops\_per\_token \* T
+
+flops\_per\_iter \= flops\_per\_fwdbwd \* fwdbwd\_per\_iter
+
+\# express our flops throughput as ratio of A100 bfloat16 peak flops
+
+flops\_achieved \= flops\_per\_iter \* \(1\.0\/dt\) \# per second
+
+flops\_promised \= 312e12 \# A100 GPU bfloat16 peak flops is 312 TFLOPS
+
+mfu \= flops\_achieved \/ flops\_promised
+
+return mfu
+
+\@torch\.no\_grad\(\)
+
+def generate\(self\, idx\, max\_new\_tokens\, temperature\=1\.0\, top\_k\=None\)\:
+
+\"\"\"
+
+Take a conditioning sequence of indices idx \(LongTensor of shape \(b\,t\)\) and complete
+
+the sequence max\_new\_tokens times\, feeding the predictions back into the model each time\.
+
+Most likely you\'ll want to make sure to be in model\.eval\(\) mode of operation for this\.
+
+\"\"\"
+
+for \_ in range\(max\_new\_tokens\)\:
+
+\# if the sequence context is growing too long we must crop it at block\_size
+
+idx\_cond \= idx if idx\.size\(1\) \<\= self\.config\.block\_size else idx\[\:\, \-self\.config\.block\_size\:\]
+
+\# forward the model to get the logits for the index in the sequence
+
+logits\, \_ \= self\(idx\_cond\)
+
+\# pluck the logits at the final step and scale by desired temperature
+
+logits \= logits\[\:\, \-1\, \:\] \/ temperature
+
+\# optionally crop the logits to only the top k options
+
+if top\_k is not None\:
+
+v\, \_ \= torch\.topk\(logits\, min\(top\_k\, logits\.size\(\-1\)\)\)
+
+logits\[logits \< v\[\:\, \[\-1\]\]\] \= \-float\(\'Inf\'\)
+
+\# apply softmax to convert logits to \(normalized\) probabilities
+
+probs \= F\.softmax\(logits\, dim\=\-1\)
+
+\# sample from the distribution
+
+idx\_next \= torch\.multinomial\(probs\, num\_samples\=1\)
+
+\# append sampled index to the running sequence and continue
+
+idx \= torch\.cat\(\(idx\, idx\_next\)\, dim\=1\)
+
+return idx
+
+# nanoGPT: sample.py
+
+\"\"\"
+
+Sample from a trained model
+
+\"\"\"
+
+import os
+
+import pickle
+
+from contextlib import nullcontext
+
+import torch
+
+import tiktoken
+
+from model import GPTConfig\, GPT
+
+\# \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+init\_from \= \'resume\' \# either \'resume\' \(from an out\_dir\) or a gpt2 variant \(e\.g\. \'gpt2\-xl\'\)
+
+out\_dir \= \'out\' \# ignored if init\_from is not \'resume\'
+
+start \= \"\\n\" \# or \"\<\|endoftext\|\>\" or etc\. Can also specify a file\, use as\: \"FILE\:prompt\.txt\"
+
+num\_samples \= 10 \# number of samples to draw
+
+max\_new\_tokens \= 500 \# number of tokens generated in each sample
+
+temperature \= 0\.8 \# 1\.0 \= no change\, \< 1\.0 \= less random\, \> 1\.0 \= more random\, in predictions
+
+top\_k \= 200 \# retain only the top\_k most likely tokens\, clamp others to have 0 probability
+
+seed \= 1337
+
+device \= \'cuda\' \# examples\: \'cpu\'\, \'cuda\'\, \'cuda\:0\'\, \'cuda\:1\'\, etc\.
+
+dtype \= \'bfloat16\' if torch\.cuda\.is\_available\(\) and torch\.cuda\.is\_bf16\_supported\(\) else \'float16\' \# \'float32\' or \'bfloat16\' or \'float16\'
+
+compile \= False \# use PyTorch 2\.0 to compile the model to be faster
+
+exec\(open\(\'configurator\.py\'\)\.read\(\)\) \# overrides from command line or config file
+
+\# \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+torch\.manual\_seed\(seed\)
+
+torch\.cuda\.manual\_seed\(seed\)
+
+torch\.backends\.cuda\.matmul\.allow\_tf32 \= True \# allow tf32 on matmul
+
+torch\.backends\.cudnn\.allow\_tf32 \= True \# allow tf32 on cudnn
+
+device\_type \= \'cuda\' if \'cuda\' in device else \'cpu\' \# for later use in torch\.autocast
+
+ptdtype \= \{\'float32\'\: torch\.float32\, \'bfloat16\'\: torch\.bfloat16\, \'float16\'\: torch\.float16\}\[dtype\]
+
+ctx \= nullcontext\(\) if device\_type \=\= \'cpu\' else torch\.amp\.autocast\(device\_type\=device\_type\, dtype\=ptdtype\)
+
+\# model
+
+if init\_from \=\= \'resume\'\:
+
+\# init from a model saved in a specific directory
+
+ckpt\_path \= os\.path\.join\(out\_dir\, \'ckpt\.pt\'\)
+
+checkpoint \= torch\.load\(ckpt\_path\, map\_location\=device\)
+
+gptconf \= GPTConfig\(\*\*checkpoint\[\'model\_args\'\]\)
+
+model \= GPT\(gptconf\)
+
+state\_dict \= checkpoint\[\'model\'\]
+
+unwanted\_prefix \= \'\_orig\_mod\.\'
+
+for k\,v in list\(state\_dict\.items\(\)\)\:
+
+if k\.startswith\(unwanted\_prefix\)\:
+
+state\_dict\[k\[len\(unwanted\_prefix\)\:\]\] \= state\_dict\.pop\(k\)
+
+model\.load\_state\_dict\(state\_dict\)
+
+elif init\_from\.startswith\(\'gpt2\'\)\:
+
+\# init from a given GPT\-2 model
+
+model \= GPT\.from\_pretrained\(init\_from\, dict\(dropout\=0\.0\)\)
+
+model\.eval\(\)
+
+model\.to\(device\)
+
+if compile\:
+
+model \= torch\.compile\(model\) \# requires PyTorch 2\.0 \(optional\)
+
+\# look for the meta pickle in case it is available in the dataset folder
+
+load\_meta \= False
+
+if init\_from \=\= \'resume\' and \'config\' in checkpoint and \'dataset\' in checkpoint\[\'config\'\]\: \# older checkpoints might not have these\.\.\.
+
+meta\_path \= os\.path\.join\(\'data\'\, checkpoint\[\'config\'\]\[\'dataset\'\]\, \'meta\.pkl\'\)
+
+load\_meta \= os\.path\.exists\(meta\_path\)
+
+if load\_meta\:
+
+print\(f\"Loading meta from \{meta\_path\}\.\.\.\"\)
+
+with open\(meta\_path\, \'rb\'\) as f\:
+
+meta \= pickle\.load\(f\)
+
+\# TODO want to make this more general to arbitrary encoder\/decoder schemes
+
+stoi\, itos \= meta\[\'stoi\'\]\, meta\[\'itos\'\]
+
+encode \= lambda s\: \[stoi\[c\] for c in s\]
+
+decode \= lambda l\: \'\'\.join\(\[itos\[i\] for i in l\]\)
+
+else\:
+
+\# ok let\'s assume gpt\-2 encodings by default
+
+print\(\"No meta\.pkl found\, assuming GPT\-2 encodings\.\.\.\"\)
+
+enc \= tiktoken\.get\_encoding\(\"gpt2\"\)
+
+encode \= lambda s\: enc\.encode\(s\, allowed\_special\=\{\"\<\|endoftext\|\>\"\}\)
+
+decode \= lambda l\: enc\.decode\(l\)
+
+\# encode the beginning of the prompt
+
+if start\.startswith\(\'FILE\:\'\)\:
+
+with open\(start\[5\:\]\, \'r\'\, encoding\=\'utf\-8\'\) as f\:
+
+start \= f\.read\(\)
+
+start\_ids \= encode\(start\)
+
+x \= \(torch\.tensor\(start\_ids\, dtype\=torch\.long\, device\=device\)\[None\, \.\.\.\]\)
+
+\# run generation
+
+with torch\.no\_grad\(\)\:
+
+with ctx\:
+
+for k in range\(num\_samples\)\:
+
+y \= model\.generate\(x\, max\_new\_tokens\, temperature\=temperature\, top\_k\=top\_k\)
+
+print\(decode\(y\[0\]\.tolist\(\)\)\)
+
+print\(\'\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\'\)
+
+# nanoGPT: train.py
+
+\"\"\"
+
+This training script can be run both on a single gpu in debug mode\,
+
+and also in a larger training run with distributed data parallel \(ddp\)\.
+
+To run on a single GPU\, example\:
+
+\$ python train\.py \-\-batch\_size\=32 \-\-compile\=False
+
+To run with DDP on 4 gpus on 1 node\, example\:
+
+\$ torchrun \-\-standalone \-\-nproc\_per\_node\=4 train\.py
+
+To run with DDP on 4 gpus across 2 nodes\, example\:
+
+\- Run on the first \(master\) node with example IP 123\.456\.123\.456\:
+
+\$ torchrun \-\-nproc\_per\_node\=8 \-\-nnodes\=2 \-\-node\_rank\=0 \-\-master\_addr\=123\.456\.123\.456 \-\-master\_port\=1234 train\.py
+
+\- Run on the worker node\:
+
+\$ torchrun \-\-nproc\_per\_node\=8 \-\-nnodes\=2 \-\-node\_rank\=1 \-\-master\_addr\=123\.456\.123\.456 \-\-master\_port\=1234 train\.py
+
+\(If your cluster does not have Infiniband interconnect prepend NCCL\_IB\_DISABLE\=1\)
+
+\"\"\"
+
+import os
+
+import time
+
+import math
+
+import pickle
+
+from contextlib import nullcontext
+
+import numpy as np
+
+import torch
+
+from torch\.nn\.parallel import DistributedDataParallel as DDP
+
+from torch\.distributed import init\_process\_group\, destroy\_process\_group
+
+from model import GPTConfig\, GPT
+
+\# \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+\# default config values designed to train a gpt2 \(124M\) on OpenWebText
+
+\# I\/O
+
+out\_dir \= \'out\'
+
+eval\_interval \= 2000
+
+log\_interval \= 1
+
+eval\_iters \= 200
+
+eval\_only \= False \# if True\, script exits right after the first eval
+
+always\_save\_checkpoint \= True \# if True\, always save a checkpoint after each eval
+
+init\_from \= \'scratch\' \# \'scratch\' or \'resume\' or \'gpt2\*\'
+
+\# wandb logging
+
+wandb\_log \= False \# disabled by default
+
+wandb\_project \= \'owt\'
+
+wandb\_run\_name \= \'gpt2\' \# \'run\' \+ str\(time\.time\(\)\)
+
+\# data
+
+dataset \= \'openwebtext\'
+
+gradient\_accumulation\_steps \= 5 \* 8 \# used to simulate larger batch sizes
+
+batch\_size \= 12 \# if gradient\_accumulation\_steps \> 1\, this is the micro\-batch size
+
+block\_size \= 1024
+
+\# model
+
+n\_layer \= 12
+
+n\_head \= 12
+
+n\_embd \= 768
+
+dropout \= 0\.0 \# for pretraining 0 is good\, for finetuning try 0\.1\+
+
+bias \= False \# do we use bias inside LayerNorm and Linear layers\?
+
+\# adamw optimizer
+
+learning\_rate \= 6e\-4 \# max learning rate
+
+max\_iters \= 600000 \# total number of training iterations
+
+weight\_decay \= 1e\-1
+
+beta1 \= 0\.9
+
+beta2 \= 0\.95
+
+grad\_clip \= 1\.0 \# clip gradients at this value\, or disable if \=\= 0\.0
+
+\# learning rate decay settings
+
+decay\_lr \= True \# whether to decay the learning rate
+
+warmup\_iters \= 2000 \# how many steps to warm up for
+
+lr\_decay\_iters \= 600000 \# should be \~\= max\_iters per Chinchilla
+
+min\_lr \= 6e\-5 \# minimum learning rate\, should be \~\= learning\_rate\/10 per Chinchilla
+
+\# DDP settings
+
+backend \= \'nccl\' \# \'nccl\'\, \'gloo\'\, etc\.
+
+\# system
+
+device \= \'cuda\' \# examples\: \'cpu\'\, \'cuda\'\, \'cuda\:0\'\, \'cuda\:1\' etc\.\, or try \'mps\' on macbooks
+
+dtype \= \'bfloat16\' if torch\.cuda\.is\_available\(\) and torch\.cuda\.is\_bf16\_supported\(\) else \'float16\' \# \'float32\'\, \'bfloat16\'\, or \'float16\'\, the latter will auto implement a GradScaler
+
+compile \= True \# use PyTorch 2\.0 to compile the model to be faster
+
+\# \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+config\_keys \= \[k for k\,v in globals\(\)\.items\(\) if not k\.startswith\(\'\_\'\) and isinstance\(v\, \(int\, float\, bool\, str\)\)\]
+
+exec\(open\(\'configurator\.py\'\)\.read\(\)\) \# overrides from command line or config file
+
+config \= \{k\: globals\(\)\[k\] for k in config\_keys\} \# will be useful for logging
+
+\# \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+\# various inits\, derived attributes\, I\/O setup
+
+ddp \= int\(os\.environ\.get\(\'RANK\'\, \-1\)\) \!\= \-1 \# is this a ddp run\?
+
+if ddp\:
+
+init\_process\_group\(backend\=backend\)
+
+ddp\_rank \= int\(os\.environ\[\'RANK\'\]\)
+
+ddp\_local\_rank \= int\(os\.environ\[\'LOCAL\_RANK\'\]\)
+
+ddp\_world\_size \= int\(os\.environ\[\'WORLD\_SIZE\'\]\)
+
+device \= f\'cuda\:\{ddp\_local\_rank\}\'
+
+torch\.cuda\.set\_device\(device\)
+
+master\_process \= ddp\_rank \=\= 0 \# this process will do logging\, checkpointing etc\.
+
+seed\_offset \= ddp\_rank \# each process gets a different seed
+
+\# world\_size number of processes will be training simultaneously\, so we can scale
+
+\# down the desired gradient accumulation iterations per process proportionally
+
+assert gradient\_accumulation\_steps \% ddp\_world\_size \=\= 0
+
+gradient\_accumulation\_steps \/\/\= ddp\_world\_size
+
+else\:
+
+\# if not ddp\, we are running on a single gpu\, and one process
+
+master\_process \= True
+
+seed\_offset \= 0
+
+ddp\_world\_size \= 1
+
+tokens\_per\_iter \= gradient\_accumulation\_steps \* ddp\_world\_size \* batch\_size \* block\_size
+
+print\(f\"tokens per iteration will be\: \{tokens\_per\_iter\:\,\}\"\)
+
+if master\_process\:
+
+os\.makedirs\(out\_dir\, exist\_ok\=True\)
+
+torch\.manual\_seed\(1337 \+ seed\_offset\)
+
+torch\.backends\.cuda\.matmul\.allow\_tf32 \= True \# allow tf32 on matmul
+
+torch\.backends\.cudnn\.allow\_tf32 \= True \# allow tf32 on cudnn
+
+device\_type \= \'cuda\' if \'cuda\' in device else \'cpu\' \# for later use in torch\.autocast
+
+\# note\: float16 data type will automatically use a GradScaler
+
+ptdtype \= \{\'float32\'\: torch\.float32\, \'bfloat16\'\: torch\.bfloat16\, \'float16\'\: torch\.float16\}\[dtype\]
+
+ctx \= nullcontext\(\) if device\_type \=\= \'cpu\' else torch\.amp\.autocast\(device\_type\=device\_type\, dtype\=ptdtype\)
+
+\# poor man\'s data loader
+
+data\_dir \= os\.path\.join\(\'data\'\, dataset\)
+
+def get\_batch\(split\)\:
+
+\# We recreate np\.memmap every batch to avoid a memory leak\, as per
+
+\# https\:\/\/stackoverflow\.com\/questions\/45132940\/numpy\-memmap\-memory\-usage\-want\-to\-iterate\-once\/61472122\#61472122
+
+if split \=\= \'train\'\:
+
+data \= np\.memmap\(os\.path\.join\(data\_dir\, \'train\.bin\'\)\, dtype\=np\.uint16\, mode\=\'r\'\)
+
+else\:
+
+data \= np\.memmap\(os\.path\.join\(data\_dir\, \'val\.bin\'\)\, dtype\=np\.uint16\, mode\=\'r\'\)
+
+ix \= torch\.randint\(len\(data\) \- block\_size\, \(batch\_size\,\)\)
+
+x \= torch\.stack\(\[torch\.from\_numpy\(\(data\[i\:i\+block\_size\]\)\.astype\(np\.int64\)\) for i in ix\]\)
+
+y \= torch\.stack\(\[torch\.from\_numpy\(\(data\[i\+1\:i\+1\+block\_size\]\)\.astype\(np\.int64\)\) for i in ix\]\)
+
+if device\_type \=\= \'cuda\'\:
+
+\# pin arrays x\,y\, which allows us to move them to GPU asynchronously \(non\_blocking\=True\)
+
+x\, y \= x\.pin\_memory\(\)\.to\(device\, non\_blocking\=True\)\, y\.pin\_memory\(\)\.to\(device\, non\_blocking\=True\)
+
+else\:
+
+x\, y \= x\.to\(device\)\, y\.to\(device\)
+
+return x\, y
+
+\# init these up here\, can override if init\_from\=\'resume\' \(i\.e\. from a checkpoint\)
+
+iter\_num \= 0
+
+best\_val\_loss \= 1e9
+
+\# attempt to derive vocab\_size from the dataset
+
+meta\_path \= os\.path\.join\(data\_dir\, \'meta\.pkl\'\)
+
+meta\_vocab\_size \= None
+
+if os\.path\.exists\(meta\_path\)\:
+
+with open\(meta\_path\, \'rb\'\) as f\:
+
+meta \= pickle\.load\(f\)
+
+meta\_vocab\_size \= meta\[\'vocab\_size\'\]
+
+print\(f\"found vocab\_size \= \{meta\_vocab\_size\} \(inside \{meta\_path\}\)\"\)
+
+\# model init
+
+model\_args \= dict\(n\_layer\=n\_layer\, n\_head\=n\_head\, n\_embd\=n\_embd\, block\_size\=block\_size\,
+
+bias\=bias\, vocab\_size\=None\, dropout\=dropout\) \# start with model\_args from command line
+
+if init\_from \=\= \'scratch\'\:
+
+\# init a new model from scratch
+
+print\(\"Initializing a new model from scratch\"\)
+
+\# determine the vocab size we\'ll use for from\-scratch training
+
+if meta\_vocab\_size is None\:
+
+print\(\"defaulting to vocab\_size of GPT\-2 to 50304 \(50257 rounded up for efficiency\)\"\)
+
+model\_args\[\'vocab\_size\'\] \= meta\_vocab\_size if meta\_vocab\_size is not None else 50304
+
+gptconf \= GPTConfig\(\*\*model\_args\)
+
+model \= GPT\(gptconf\)
+
+elif init\_from \=\= \'resume\'\:
+
+print\(f\"Resuming training from \{out\_dir\}\"\)
+
+\# resume training from a checkpoint\.
+
+ckpt\_path \= os\.path\.join\(out\_dir\, \'ckpt\.pt\'\)
+
+checkpoint \= torch\.load\(ckpt\_path\, map\_location\=device\)
+
+checkpoint\_model\_args \= checkpoint\[\'model\_args\'\]
+
+\# force these config attributes to be equal otherwise we can\'t even resume training
+
+\# the rest of the attributes \(e\.g\. dropout\) can stay as desired from command line
+
+for k in \[\'n\_layer\'\, \'n\_head\'\, \'n\_embd\'\, \'block\_size\'\, \'bias\'\, \'vocab\_size\'\]\:
+
+model\_args\[k\] \= checkpoint\_model\_args\[k\]
+
+\# create the model
+
+gptconf \= GPTConfig\(\*\*model\_args\)
+
+model \= GPT\(gptconf\)
+
+state\_dict \= checkpoint\[\'model\'\]
+
+\# fix the keys of the state dictionary \:\(
+
+\# honestly no idea how checkpoints sometimes get this prefix\, have to debug more
+
+unwanted\_prefix \= \'\_orig\_mod\.\'
+
+for k\,v in list\(state\_dict\.items\(\)\)\:
+
+if k\.startswith\(unwanted\_prefix\)\:
+
+state\_dict\[k\[len\(unwanted\_prefix\)\:\]\] \= state\_dict\.pop\(k\)
+
+model\.load\_state\_dict\(state\_dict\)
+
+iter\_num \= checkpoint\[\'iter\_num\'\]
+
+best\_val\_loss \= checkpoint\[\'best\_val\_loss\'\]
+
+elif init\_from\.startswith\(\'gpt2\'\)\:
+
+print\(f\"Initializing from OpenAI GPT\-2 weights\: \{init\_from\}\"\)
+
+\# initialize from OpenAI GPT\-2 weights
+
+override\_args \= dict\(dropout\=dropout\)
+
+model \= GPT\.from\_pretrained\(init\_from\, override\_args\)
+
+\# read off the created config params\, so we can store them into checkpoint correctly
+
+for k in \[\'n\_layer\'\, \'n\_head\'\, \'n\_embd\'\, \'block\_size\'\, \'bias\'\, \'vocab\_size\'\]\:
+
+model\_args\[k\] \= getattr\(model\.config\, k\)
+
+\# crop down the model block size if desired\, using model surgery
+
+if block\_size \< model\.config\.block\_size\:
+
+model\.crop\_block\_size\(block\_size\)
+
+model\_args\[\'block\_size\'\] \= block\_size \# so that the checkpoint will have the right value
+
+model\.to\(device\)
+
+\# initialize a GradScaler\. If enabled\=False scaler is a no\-op
+
+scaler \= torch\.cuda\.amp\.GradScaler\(enabled\=\(dtype \=\= \'float16\'\)\)
+
+\# optimizer
+
+optimizer \= model\.configure\_optimizers\(weight\_decay\, learning\_rate\, \(beta1\, beta2\)\, device\_type\)
+
+if init\_from \=\= \'resume\'\:
+
+optimizer\.load\_state\_dict\(checkpoint\[\'optimizer\'\]\)
+
+checkpoint \= None \# free up memory
+
+\# compile the model
+
+if compile\:
+
+print\(\"compiling the model\.\.\. \(takes a \~minute\)\"\)
+
+unoptimized\_model \= model
+
+model \= torch\.compile\(model\) \# requires PyTorch 2\.0
+
+\# wrap model into DDP container
+
+if ddp\:
+
+model \= DDP\(model\, device\_ids\=\[ddp\_local\_rank\]\)
+
+\# helps estimate an arbitrarily accurate loss over either split using many batches
+
+\@torch\.no\_grad\(\)
+
+def estimate\_loss\(\)\:
+
+out \= \{\}
+
+model\.eval\(\)
+
+for split in \[\'train\'\, \'val\'\]\:
+
+losses \= torch\.zeros\(eval\_iters\)
+
+for k in range\(eval\_iters\)\:
+
+X\, Y \= get\_batch\(split\)
+
+with ctx\:
+
+logits\, loss \= model\(X\, Y\)
+
+losses\[k\] \= loss\.item\(\)
+
+out\[split\] \= losses\.mean\(\)
+
+model\.train\(\)
+
+return out
+
+\# learning rate decay scheduler \(cosine with warmup\)
+
+def get\_lr\(it\)\:
+
+\# 1\) linear warmup for warmup\_iters steps
+
+if it \< warmup\_iters\:
+
+return learning\_rate \* \(it \+ 1\) \/ \(warmup\_iters \+ 1\)
+
+\# 2\) if it \> lr\_decay\_iters\, return min learning rate
+
+if it \> lr\_decay\_iters\:
+
+return min\_lr
+
+\# 3\) in between\, use cosine decay down to min learning rate
+
+decay\_ratio \= \(it \- warmup\_iters\) \/ \(lr\_decay\_iters \- warmup\_iters\)
+
+assert 0 \<\= decay\_ratio \<\= 1
+
+coeff \= 0\.5 \* \(1\.0 \+ math\.cos\(math\.pi \* decay\_ratio\)\) \# coeff ranges 0\.\.1
+
+return min\_lr \+ coeff \* \(learning\_rate \- min\_lr\)
+
+\# logging
+
+if wandb\_log and master\_process\:
+
+import wandb
+
+wandb\.init\(project\=wandb\_project\, name\=wandb\_run\_name\, config\=config\)
+
+\# training loop
+
+X\, Y \= get\_batch\(\'train\'\) \# fetch the very first batch
+
+t0 \= time\.time\(\)
+
+local\_iter\_num \= 0 \# number of iterations in the lifetime of this process
+
+raw\_model \= model\.module if ddp else model \# unwrap DDP container if needed
+
+running\_mfu \= \-1\.0
+
+while True\:
+
+\# determine and set the learning rate for this iteration
+
+lr \= get\_lr\(iter\_num\) if decay\_lr else learning\_rate
+
+for param\_group in optimizer\.param\_groups\:
+
+param\_group\[\'lr\'\] \= lr
+
+\# evaluate the loss on train\/val sets and write checkpoints
+
+if iter\_num \% eval\_interval \=\= 0 and master\_process\:
+
+losses \= estimate\_loss\(\)
+
+print\(f\"step \{iter\_num\}\: train loss \{losses\[\'train\'\]\:\.4f\}\, val loss \{losses\[\'val\'\]\:\.4f\}\"\)
+
+if wandb\_log\:
+
+wandb\.log\(\{
+
+\"iter\"\: iter\_num\,
+
+\"train\/loss\"\: losses\[\'train\'\]\,
+
+\"val\/loss\"\: losses\[\'val\'\]\,
+
+\"lr\"\: lr\,
+
+\"mfu\"\: running\_mfu\*100\, \# convert to percentage
+
+\}\)
+
+if losses\[\'val\'\] \< best\_val\_loss or always\_save\_checkpoint\:
+
+best\_val\_loss \= losses\[\'val\'\]
+
+if iter\_num \> 0\:
+
+checkpoint \= \{
+
+\'model\'\: raw\_model\.state\_dict\(\)\,
+
+\'optimizer\'\: optimizer\.state\_dict\(\)\,
+
+\'model\_args\'\: model\_args\,
+
+\'iter\_num\'\: iter\_num\,
+
+\'best\_val\_loss\'\: best\_val\_loss\,
+
+\'config\'\: config\,
+
+\}
+
+print\(f\"saving checkpoint to \{out\_dir\}\"\)
+
+torch\.save\(checkpoint\, os\.path\.join\(out\_dir\, \'ckpt\.pt\'\)\)
+
+if iter\_num \=\= 0 and eval\_only\:
+
+break
+
+\# forward backward update\, with optional gradient accumulation to simulate larger batch size
+
+\# and using the GradScaler if data type is float16
+
+for micro\_step in range\(gradient\_accumulation\_steps\)\:
+
+if ddp\:
+
+\# in DDP training we only need to sync gradients at the last micro step\.
+
+\# the official way to do this is with model\.no\_sync\(\) context manager\, but
+
+\# I really dislike that this bloats the code and forces us to repeat code
+
+\# looking at the source of that context manager\, it just toggles this variable
+
+model\.require\_backward\_grad\_sync \= \(micro\_step \=\= gradient\_accumulation\_steps \- 1\)
+
+with ctx\:
+
+logits\, loss \= model\(X\, Y\)
+
+loss \= loss \/ gradient\_accumulation\_steps \# scale the loss to account for gradient accumulation
+
+\# immediately async prefetch next batch while model is doing the forward pass on the GPU
+
+X\, Y \= get\_batch\(\'train\'\)
+
+\# backward pass\, with gradient scaling if training in fp16
+
+scaler\.scale\(loss\)\.backward\(\)
+
+\# clip the gradient
+
+if grad\_clip \!\= 0\.0\:
+
+scaler\.unscale\_\(optimizer\)
+
+torch\.nn\.utils\.clip\_grad\_norm\_\(model\.parameters\(\)\, grad\_clip\)
+
+\# step the optimizer and scaler if training in fp16
+
+scaler\.step\(optimizer\)
+
+scaler\.update\(\)
+
+\# flush the gradients as soon as we can\, no need for this memory anymore
+
+optimizer\.zero\_grad\(set\_to\_none\=True\)
+
+\# timing and logging
+
+t1 \= time\.time\(\)
+
+dt \= t1 \- t0
+
+t0 \= t1
+
+if iter\_num \% log\_interval \=\= 0 and master\_process\:
+
+\# get loss as float\. note\: this is a CPU\-GPU sync point
+
+\# scale up to undo the division above\, approximating the true total loss \(exact would have been a sum\)
+
+lossf \= loss\.item\(\) \* gradient\_accumulation\_steps
+
+if local\_iter\_num \>\= 5\: \# let the training loop settle a bit
+
+mfu \= raw\_model\.estimate\_mfu\(batch\_size \* gradient\_accumulation\_steps\, dt\)
+
+running\_mfu \= mfu if running\_mfu \=\= \-1\.0 else 0\.9\*running\_mfu \+ 0\.1\*mfu
+
+print\(f\"iter \{iter\_num\}\: loss \{lossf\:\.4f\}\, time \{dt\*1000\:\.2f\}ms\, mfu \{running\_mfu\*100\:\.2f\}\%\"\)
+
+iter\_num \+\= 1
+
+local\_iter\_num \+\= 1
+
+\# termination conditions
+
+if iter\_num \> max\_iters\:
+
+break
+
+if ddp\:
+
+destroy\_process\_group\(\)
+

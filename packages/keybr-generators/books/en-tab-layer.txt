@@ -1,0 +1,304 @@
+# Before you start
+
+This book is typed on a keyboard with two software layers\. Hold Tab with the left little finger and the home row turns into the symbols that code is made of\. Hold the right Option key with the right thumb and the home row becomes the number row\. Caps Lock is Escape when tapped and Control when held\.
+
+The rule for every symbol is the same\: the column tells you the key\. The right hand carries the characters that used to live on Shift plus the top row\: u\, i and o give \^\, \& and \*\, and j and k give \( and \)\. The left hand mirrors the number row on the top letter row\: w\, e\, r and t give \@\, \#\, \$ and \%\.
+
+Practice is about rhythm\, not speed\. Hold the layer key down\, strike the letter\, release both\. If you hold Tab on its own for more than a second and let go\, nothing is sent\. That is by design\: a tap is a Tab\, a hold is a layer\.
+
+Type these warm\-up lines exactly\. Every bracket and every operator here comes from the layer\: f\(x\) \= a\[0\] \+ b\[1\]\; total \= \(price \* qty\) \- discount\; if \(ok\) \{ run\(\)\; \} else \{ stop\(\)\; \}
+
+When a line is green\, keep going\. When it is red\, backspace and fix it\. The point of a book is that you never have to think about what comes next\, only about where your fingers are\.
+
+# The right hand: brackets
+
+Parentheses live on j and k\, the two strongest fingers of the right hand\. Curly braces are next door on l and the semicolon key\. Square brackets are one row down on m and the comma\. Opening on the left\, closing on the right\, every time\.
+
+Say it while you type it\: j k is \( \)\, l \; is \{ \}\, m \, is \[ \]\.
+
+f\(x\) g\(y\) h\(z\) print\(name\) len\(items\) range\(10\)
+
+a\[0\] a\[1\] b\[i\] rows\[r\] cols\[c\] grid\[r\]\[c\] data\[key\]
+
+\{ \} \{a\} \{a\, b\} \{ key\: value \} \{ name\: n\, age\: a \}
+
+f\(a\[0\]\) g\(b\[1\]\) h\(\{ x\: 1 \}\) call\(arg\, \[1\, 2\]\) apply\(fn\, \{ k\: v \}\)
+
+\(\(\(\)\)\) \[\[\[\]\]\] \{\{\{\}\}\} \(\[\{\}\]\) \{\[\(\)\]\} \(\{\[\]\}\)
+
+The shape of code is mostly brackets\. A function call is a name followed by parentheses\; an index is a name followed by square brackets\; a block or an object is a pair of braces\. Once the three pairs are automatic\, the rest of the layer is easy\.
+
+result \= parse\(line\)\[0\] if ok\(line\) else default\(\{ key\: \[\] \}\)
+
+matrix\[r\]\[c\] \= f\(g\(h\(x\)\)\, \{ scale\: s\, offset\: \[dx\, dy\] \}\)
+
+# The right hand: operators
+
+The rest of the right hand holds the operators\. y is backslash\, u is caret\, i is ampersand\, o is star and p is the pipe\. On the home row h is the underscore\. On the bottom row n is equals\, and the full stop and slash give the angle brackets\.
+
+u i o are \^ \& \* because they are 6\, 7 and 8 shifted\. j k are \( \) because they are 9 and 0 shifted\. If you forget a symbol\, look up the column and you will find it\.
+
+a \= b\; x \= y\; total \= 0\; count \= count \+ 1
+
+a \& b\; a \| b\; a \^ b\; \~mask\; x \<\< 2\; y \>\> 1
+
+a \< b\; a \> b\; a \<\= b\; a \>\= b\; a \=\= b\; a \!\= b
+
+path \= base \+ \"\\\\\" \+ name\; escaped \= \"\\n\\t\"
+
+first\_name last\_name snake\_case \_\_init\_\_ \_\_main\_\_ \_private
+
+items\.map\(x \=\> x \* 2\)\.filter\(x \=\> x \> 10\)
+
+The underscore deserves its own sentence\. In Python it joins words in names\; in JavaScript it marks a placeholder\; in shells it is the last argument\. You will type it hundreds of times a day\, and it is now one key away from home\: Tab and h\.
+
+max\_value \= max\(a\, b\) if a \!\= b else a\; result \= a \| b \& c \^ d
+
+# The left hand
+
+The left hand mirrors the number row\: w is \@\, e is \#\, r is \$ and t is \%\. Read it as 2\, 3\, 4\, 5 with Shift\, which is exactly where those symbols came from\. Underneath\, d is \+ and f is \!\, g is the tilde and b is the backtick\.
+
+\@app\.route \@property \@dataclass \@override \@decorator
+
+\#include \#define \#\!\/bin\/bash \# comment \# TODO \# FIXME
+
+\$HOME \$PATH \$1 \$\@ \$\{name\} \$\(pwd\) \$\? \$\$
+
+100\% 50\% 0\.5\% n \% 2 \=\= 0 i \% 10 value \%\= 7
+
+a \+ b\; i \+\= 1\; x\+\+ is not Python\; total \+\= price \* qty
+
+\!done \!ok if \(\!x\) return\; a \!\= b\; \!\!value
+
+\~\/code \~\/\.config \~\/\.ssh\/config \~user cd \~
+
+\`cmd\` \`date\` \`git rev\-parse HEAD\` \`pwd\`
+
+The hash is a special case on a British Mac\. Natively it hides under Option and 3\; on this layer it is Tab and e\, the same finger as the 3 it mirrors\. Comments\, shebangs and preprocessor lines all start with it\, so it earns a home row key\.
+
+x \= a \+ b \* c \% d\; ok \= \!fail \&\& \(n \% 2 \=\= 0\)\; print\(f\"\{x\:\>8\}\"\)
+
+# Numbers on the home row
+
+Hold the right Option key with your right thumb and a s d f g h j k l \; become 1 2 3 4 5 6 7 8 9 0\. It is the number row dropped one row down\, the same fingers\, nothing new to learn\. Because Option is a real modifier there is no timing to get wrong\.
+
+1 2 3 4 5 6 7 8 9 0 10 100 1000 2026
+
+x\[0\] x\[1\] y\[10\] z\[99\] a\[0\]\[1\] b\[2\]\[3\]
+
+v1\.2\.3 v16\.1\.0 3\.14159 0\.5 2\.718 10e3 1e\-6
+
+2026\-08\-19 08\:30 12\:45\:00 1970\-01\-01 23\:59\:59
+
+localhost\:3000 127\.0\.0\.1\:8642 port 443 port 22 port 80
+
+for i in range\(10\)\: print\(i \* 2\)
+
+sleep 0\.25\; timeout 30\; retry 3\; limit 100
+
+i \< 10 \&\& j \> 0 \|\| k \=\= 5 \? a\[1\] \: b\[0\]
+
+Dates\, versions\, ports\, indices and loop bounds are where most digits in code come from\. Type this chapter slowly and do not look down\; the thumb finds Option by touch\, and the fingers never leave home\.
+
+# Learn as you type: Python
+
+Each paragraph here is an idea and one line of code that shows it\. Read the sentence\, then type the line\. If you already know the idiom\, type it faster\.
+
+A list comprehension builds a list in one expression\, filter included\:
+
+squares \= \[x \* x for x in range\(10\) if x \% 2 \=\= 0\]
+
+A dictionary comprehension does the same for mappings\:
+
+index \= \{name\: i for i\, name in enumerate\(names\)\}
+
+f\-strings format values inline\, with width and precision after a colon\:
+
+print\(f\"\{name\:\<12\} \{value\:\>8\.2f\} \{pct\:\.1\%\}\"\)
+
+get with a default avoids a KeyError\:
+
+count \= totals\.get\(key\, 0\) \+ 1
+
+A context manager closes the file even if something throws\:
+
+with open\(path\, encoding\=\"utf\-8\"\) as fh\: data \= fh\.read\(\)
+
+Unpacking with a star takes the rest\:
+
+first\, \*rest \= items\; head\, \*\_\, tail \= values
+
+A decorator wraps a function\; the \@ goes on the line above\:
+
+\@functools\.lru\_cache\(maxsize\=None\)
+
+def fib\(n\)\: return n if n \< 2 else fib\(n \- 1\) \+ fib\(n \- 2\)
+
+Dataclasses write the boring methods for you\:
+
+\@dataclass\(frozen\=True\) class Point\: x\: float\; y\: float
+
+Walrus assigns inside an expression\:
+
+while \(chunk \:\= stream\.read\(4096\)\)\: process\(chunk\)
+
+Sorting by a key\, descending\:
+
+rows\.sort\(key\=lambda r\: \(r\[\"score\"\]\, r\[\"name\"\]\)\, reverse\=True\)
+
+Keyword\-only arguments after the star make calls readable\:
+
+def connect\(host\, \*\, port\=5432\, timeout\=3\.0\)\: \.\.\.
+
+Type hints make tools smarter and cost nothing at runtime\:
+
+def mean\(xs\: list\[float\]\) \-\> float\: return sum\(xs\) \/ len\(xs\)
+
+The any and all builtins read like English\:
+
+if any\(x \< 0 for x in xs\) and not all\(ok\(y\) for y in ys\)\: raise ValueError\(\"bad\"\)
+
+# Learn as you type: JavaScript and TypeScript
+
+Arrow functions are the default for callbacks\:
+
+const doubled \= items\.map\(\(x\) \=\> x \* 2\)\.filter\(\(x\) \=\> x \> 10\)\;
+
+Destructuring pulls fields out by name\:
+
+const \{ id\, name \= \"anon\"\, \.\.\.rest \} \= user\;
+
+Optional chaining and nullish coalescing replace a lot of ifs\:
+
+const city \= user\?\.address\?\.city \?\? \"unknown\"\;
+
+Template literals interpolate with a dollar and braces\:
+
+console\.log\(\`\$\{name\} has \$\{items\.length\} items\`\)\;
+
+Async functions await promises and read top to bottom\:
+
+const res \= await fetch\(url\)\; const data \= await res\.json\(\)\;
+
+Spread copies and merges\:
+
+const merged \= \{ \.\.\.defaults\, \.\.\.options\, retries\: 3 \}\;
+
+TypeScript types describe the shape\; the compiler checks it\:
+
+type Point \= \{ x\: number\; y\: number \}\; const p\: Point \= \{ x\: 1\, y\: 2 \}\;
+
+Generics keep functions typed without repeating yourself\:
+
+function first\<T\>\(xs\: readonly T\[\]\)\: T \| undefined \{ return xs\[0\]\; \}
+
+Union types and narrowing\:
+
+function len\(v\: string \| string\[\]\)\: number \{ return typeof v \=\=\= \"string\" \? v\.length \: v\.length\; \}
+
+Array helpers you will type forever\:
+
+const total \= prices\.reduce\(\(sum\, p\) \=\> sum \+ p\, 0\)\;
+
+Object\.entries\(obj\)\.forEach\(\(\[k\, v\]\) \=\> console\.log\(\`\$\{k\}\=\$\{v\}\`\)\)\;
+
+Strict equality\, always\:
+
+if \(a \=\=\= b \&\& c \!\=\= d\) \{ return \!flag\; \}
+
+# Learn as you type: shell and git
+
+Pipes connect small tools\; this is most of the shell\:
+
+grep \-rn \"TODO\" src \| cut \-d\: \-f1 \| sort \-u \| wc \-l
+
+Variables\, defaults and command substitution\:
+
+name\=\$\{1\:\-world\}\; echo \"hello\, \$name\"\; today\=\$\(date \+\%F\)
+
+Exit status is the truth of a command\:
+
+if \! make test\; then echo \"failed\" \>\&2\; exit 1\; fi
+
+Redirect both streams to a file\:
+
+\.\/run\.sh \> out\.log 2\>\&1 \&
+
+A safe loop over files with spaces in names\:
+
+find \. \-name \"\*\.json\" \-print0 \| xargs \-0 jq \-c \'\.id\'
+
+Git\: stage\, commit\, push in one breath\:
+
+git add \-A \&\& git commit \-m \"fix\: handle empty input\" \&\& git push
+
+Git\: see what changed and where you are\:
+
+git status \-\-short\; git log \-\-oneline \-n 10\; git diff \-\-stat
+
+Git\: branches and rebasing onto upstream\:
+
+git fetch upstream \&\& git rebase upstream\/master \&\& git push \-\-force\-with\-lease
+
+Git\: undo the last commit but keep the work\:
+
+git reset \-\-soft HEAD\~1
+
+Docker\: build\, run\, look\:
+
+docker compose up \-d \-\-build \&\& docker compose logs \-f \-\-tail\=50
+
+SSH and rsync\, the two tools that carry everything else\:
+
+rsync \-avz \-\-delete \.\/site\/ user\@host\:\/var\/www\/site\/
+
+ssh \-L 8080\:localhost\:80 user\@host \-N
+
+# Learn as you type: regular expressions
+
+Anchors and classes\: the start\, the end\, a digit\, a word character\:
+
+\^\\d\{4\}\-\\d\{2\}\-\\d\{2\}\$
+
+A group captures\; a question mark after a quantifier makes it lazy\:
+
+\<a href\=\"\(\.\*\?\)\"\>
+
+Alternation and escaping a literal dot\:
+
+\\\.\(jpg\|jpeg\|png\|gif\)\$
+
+A named group in Python\:
+
+\(\?P\<user\>\[a\-z0\-9\.\_\%\+\-\]\+\)\@\(\?P\<domain\>\[a\-z0\-9\.\-\]\+\\\.\[a\-z\]\{2\,\}\)
+
+Character classes with ranges and negation\:
+
+\[\^\\s\"\'\]\+\|\"\[\^\"\]\*\"\|\'\[\^\'\]\*\'
+
+Lookahead\: a password with a digit and an upper\-case letter\, eight or more\:
+
+\^\(\?\=\.\*\\d\)\(\?\=\.\*\[A\-Z\]\)\.\{8\,\}\$
+
+Substitution with back\-references in sed\:
+
+sed \-E \'s\/\(\[0\-9\]\+\)\-\(\[0\-9\]\+\)\/\\2\-\\1\/g\'
+
+Word boundaries and case\-insensitive flags in JavaScript\:
+
+const re \= \/\\bTODO\\b\|\\bFIXME\\b\/gi\; text\.match\(re\) \?\? \[\]\;
+
+Regular expressions are almost entirely layer characters\: brackets\, carets\, dollars\, pipes\, stars\, plus signs and backslashes\. If you can type this chapter cleanly\, the layer is yours\.
+
+# Care and feeding
+
+The rules live in one JSON file in the karabiner\-symbol\-layer repo\; make apply installs them and Karabiner reloads at once\. The config mirrors itself to iCloud within seconds of a change\, so a new Mac is a clone and two make commands away\.
+
+The virtual keyboard type is ANSI on purpose\. With ISO\, macOS swaps the section and backtick keys on Apple keyboards\; it looks wrong and it is wrong\. Leave it\.
+
+The keybr you are typing in is a fork with this layout built in\, running in Docker as typing\/ in the address bar\. Hints point at Tab and the right Option key because the layout tells the keyboard which keys realise each level\.
+
+When the ergonomic board arrives\, keep the same logical map\: Tab for symbols\, a thumb key for numbers\, Caps for Escape and Control\. Firmware layers are invisible to the computer\, just like Karabiner\, so everything here keeps working and the muscle memory transfers\.
+
+That is the whole book\. Start it again from chapter one at a higher speed\, or switch to guided lessons and let keybr pick the letters you are slow on\. Either way\, hold Tab\, and keep your hands on the home row\.
+
