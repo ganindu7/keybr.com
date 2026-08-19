@@ -52,6 +52,23 @@ function pointers(keyboard: Keyboard, combo: KeyCombo | null): ReactNode[] {
     const shape = keyboard.getShape(combo.id);
     if (shape != null) {
       children.unshift(pointer(shape, styles.pointer));
+      const { layerKeys } = keyboard.layout;
+      const layer =
+        combo.modifier.shift && combo.modifier.alt
+          ? layerKeys?.shiftAlt
+          : combo.modifier.alt
+            ? layerKeys?.alt
+            : null;
+      if (layer != null) {
+        // The layout defines its own layer key(s) for this level (e.g. "hold Tab").
+        for (const id of layer) {
+          children.unshift(
+            pointer(keyboard.getShape(id), styles.modifierPointer),
+          );
+        }
+        combo = combo.prefix;
+        continue;
+      }
       if (combo.modifier.shift) {
         const l = keyboard.getShape("ShiftLeft");
         const r = keyboard.getShape("ShiftRight");

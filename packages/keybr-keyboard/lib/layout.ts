@@ -2,6 +2,18 @@ import { Enum, XEnum, type XEnumItem } from "@keybr/lang";
 import { Geometry } from "./geometry.ts";
 import { Language } from "./language.ts";
 import { angleMod, angleWideMod, type Mod, nullMod } from "./mod.ts";
+import { type KeyId } from "./types.ts";
+
+/**
+ * Which physical keys the virtual keyboard should point at for the 3rd (Alt) and 4th
+ * (Shift+Alt) character levels. Layouts that implement these levels with a software layer
+ * key (e.g. Karabiner "hold Tab") use this so hints show the real key instead of AltGr.
+ * When absent, the default Alt / Shift+Alt keys are pointed at.
+ */
+export type LayerKeys = {
+  readonly alt?: readonly KeyId[];
+  readonly shiftAlt?: readonly KeyId[];
+};
 
 export class Layout implements XEnumItem {
   static custom(language: Language) {
@@ -185,6 +197,8 @@ export class Layout implements XEnumItem {
       Geometry.ANSI_101_FULL,
       Geometry.MATRIX,
     ),
+    /* mod= */ nullMod,
+    /* layerKeys= */ { alt: ["Tab"], shiftAlt: ["AltRight"] },
   );
   static readonly EN_JP = new Layout(
     /* id= */ "en-jp",
@@ -1534,6 +1548,7 @@ export class Layout implements XEnumItem {
     readonly emulate: boolean,
     readonly geometries: Enum<Geometry>,
     readonly mod: Mod = nullMod,
+    readonly layerKeys: LayerKeys | null = null,
   ) {
     Object.freeze(this);
   }
