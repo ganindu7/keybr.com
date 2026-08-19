@@ -1,4 +1,4 @@
-.git
+# lage (the task runner) hashes packages via `git ls-tree HEAD`, so .git must stay in the context.
 **/node_modules
 **/.types
 root
