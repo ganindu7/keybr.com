@@ -66,6 +66,14 @@ export async function loadContent(book: Book): Promise<Content> {
           { with: { type: "json" } }
         )
       ).default as any;
+    case Book.EN_GIT:
+      return (
+        await import(
+          /* webpackChunkName: "book-en-git" */
+          "./data/en-git.json",
+          { with: { type: "json" } }
+        )
+      ).default as any;
     case Book.LOCAL_1:
       return await loadLocal(book, "/local-books/1.json");
     case Book.LOCAL_2:

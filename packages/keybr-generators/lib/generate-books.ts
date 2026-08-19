@@ -13,6 +13,7 @@ for (const name of [
   "fr-alice-wonderland",
   "en-tab-layer",
   "en-build-a-gpt",
+  "en-git",
 ]) {
   generate(
     pathTo(`books/${name}.txt`),

@@ -3,6 +3,7 @@ import { Enum, type EnumItem } from "@keybr/lang";
 import coverImageEnAliceWonderland from "../../assets/cover-image-en-alice-wonderland.jpg";
 import coverImageEnBuildAGpt from "../../assets/cover-image-en-build-a-gpt.jpg";
 import coverImageEnCallWild from "../../assets/cover-image-en-call-wild.jpg";
+import coverImageEnGit from "../../assets/cover-image-en-git.jpg";
 import coverImageEnJekyllHyde from "../../assets/cover-image-en-jekyll-hyde.jpg";
 import coverImageEnTabLayer from "../../assets/cover-image-en-tab-layer.jpg";
 import coverImageEsMarianela from "../../assets/cover-image-es-marianela.jpg";
@@ -67,6 +68,13 @@ export class Book implements EnumItem {
     /* coverImage= */ coverImageFrAliceWonderland,
   );
 
+  static readonly EN_GIT = new Book(
+    /* id= */ "en-git",
+    /* language= */ Language.EN,
+    /* title= */ "Git, by hand: a drill tutorial",
+    /* author= */ "Ganindu Nanayakkara",
+    /* coverImage= */ coverImageEnGit,
+  );
   /**
    * "Local books": content is fetched at runtime from /local-books/N.json on the server, so private
    * or copyrighted texts can be practised without ever entering the repository or the image.
@@ -100,6 +108,7 @@ export class Book implements EnumItem {
     Book.EN_CALL_WILD,
     Book.EN_TAB_LAYER,
     Book.EN_BUILD_A_GPT,
+    Book.EN_GIT,
     Book.LOCAL_1,
     Book.LOCAL_2,
     Book.LOCAL_3,
