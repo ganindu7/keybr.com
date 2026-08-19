@@ -7,6 +7,7 @@ import coverImageEnJekyllHyde from "../../assets/cover-image-en-jekyll-hyde.jpg"
 import coverImageEnTabLayer from "../../assets/cover-image-en-tab-layer.jpg";
 import coverImageEsMarianela from "../../assets/cover-image-es-marianela.jpg";
 import coverImageFrAliceWonderland from "../../assets/cover-image-fr-alice-wonderland.jpg";
+import coverImageLocalBook from "../../assets/cover-image-local-book.jpg";
 
 export class Book implements EnumItem {
   static readonly EN_ALICE_WONDERLAND = new Book(
@@ -66,12 +67,42 @@ export class Book implements EnumItem {
     /* coverImage= */ coverImageFrAliceWonderland,
   );
 
+  /**
+   * "Local books": content is fetched at runtime from /local-books/N.json on the server, so private
+   * or copyrighted texts can be practised without ever entering the repository or the image.
+   * The JSON has the same shape as the bundled books: [[chapterTitle, [paragraph, ...]], ...].
+   */
+  static readonly LOCAL_1 = new Book(
+    /* id= */ "local-1",
+    /* language= */ Language.EN,
+    /* title= */ "Local book 1",
+    /* author= */ "local-books/1.json",
+    /* coverImage= */ coverImageLocalBook,
+  );
+  static readonly LOCAL_2 = new Book(
+    /* id= */ "local-2",
+    /* language= */ Language.EN,
+    /* title= */ "Local book 2",
+    /* author= */ "local-books/2.json",
+    /* coverImage= */ coverImageLocalBook,
+  );
+  static readonly LOCAL_3 = new Book(
+    /* id= */ "local-3",
+    /* language= */ Language.EN,
+    /* title= */ "Local book 3",
+    /* author= */ "local-books/3.json",
+    /* coverImage= */ coverImageLocalBook,
+  );
+
   static readonly ALL = new Enum<Book>(
     Book.EN_ALICE_WONDERLAND,
     Book.EN_JEKYLL_HYDE,
     Book.EN_CALL_WILD,
     Book.EN_TAB_LAYER,
     Book.EN_BUILD_A_GPT,
+    Book.LOCAL_1,
+    Book.LOCAL_2,
+    Book.LOCAL_3,
     Book.ES_MARIANELA,
     Book.DE_ALICE_WONDERLAND,
     Book.FR_ALICE_WONDERLAND,
