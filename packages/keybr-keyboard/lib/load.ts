@@ -62,6 +62,7 @@ import { LAYOUT_EN_NIGHT_MATRIX } from "./layout/en_night_matrix.ts";
 import { LAYOUT_EN_NORMAN } from "./layout/en_norman.ts";
 import { LAYOUT_EN_STURDY } from "./layout/en_sturdy.ts";
 import { LAYOUT_EN_UK } from "./layout/en_uk.ts";
+import { LAYOUT_EN_UK_MAC_LAYERS } from "./layout/en_uk_mac_layers.ts";
 import { LAYOUT_EN_US } from "./layout/en_us.ts";
 import { LAYOUT_EN_WORKMAN } from "./layout/en_workman.ts";
 import { LAYOUT_ES_DVORAK } from "./layout/es_dvorak.ts";
@@ -168,6 +169,7 @@ const layouts = new Map<Layout, CharacterDict>([
   [Layout.EN_NORMAN, LAYOUT_EN_NORMAN],
   [Layout.EN_STURDY, LAYOUT_EN_STURDY],
   [Layout.EN_UK, LAYOUT_EN_UK],
+  [Layout.EN_UK_MAC_LAYERS, LAYOUT_EN_UK_MAC_LAYERS],
   [Layout.EN_US, LAYOUT_EN_US],
   [Layout.EN_WORKMAN, LAYOUT_EN_WORKMAN],
   [Layout.ES_DVORAK, LAYOUT_ES_DVORAK],

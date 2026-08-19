@@ -171,6 +171,21 @@ export class Layout implements XEnumItem {
       Geometry.MATRIX,
     ),
   );
+  static readonly EN_UK_MAC_LAYERS = new Layout(
+    /* id= */ "en-uk-mac-layers",
+    /* xid= */ 0xbc,
+    /* name= */ "{UK} Apple · Tab/⌥ layers",
+    /* family= */ "qwerty",
+    /* language= */ Language.EN,
+    /* emulate= */ false,
+    /* geometries= */ new Enum(
+      Geometry.ISO_102,
+      Geometry.ISO_102_FULL,
+      Geometry.ANSI_101,
+      Geometry.ANSI_101_FULL,
+      Geometry.MATRIX,
+    ),
+  );
   static readonly EN_JP = new Layout(
     /* id= */ "en-jp",
     /* xid= */ 0x12,
@@ -1401,6 +1416,7 @@ export class Layout implements XEnumItem {
     Layout.EN_ENTHIUM_V14,
     Layout.EN_KUNTEM,
     Layout.EN_UK,
+    Layout.EN_UK_MAC_LAYERS,
     Layout.EN_JP,
     Layout.EN_MTGAP,
     Layout.EL_GR,

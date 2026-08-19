@@ -174,7 +174,7 @@
 - `0xb9`: English/Enthium V11 (Matrix)
 - `0xba`: English/Enthium V13 (Matrix)
 - `0xbb`: English/Enthium V14 (Matrix)
-- `0xbc`:
+- `0xbc`: English/United Kingdom Apple · Tab/⌥ layers
 - `0xbd`:
 - `0xbe`:
 - `0xbf`:
@@ -243,7 +243,7 @@
 - `0xfe`:
 - `0xff`:
 
-95 allocated identifiers
+96 allocated identifiers
 
-145 free identifiers
+144 free identifiers
 
