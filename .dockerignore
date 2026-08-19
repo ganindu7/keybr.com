@@ -1,6 +1,8 @@
 # lage (the task runner) hashes packages via `git ls-tree HEAD`, so .git must stay in the context.
+# Only dependencies and build outputs are excluded (mirrors .gitignore); root/ itself is source.
 **/node_modules
-**/.types
-root
+packages/*/.types
+root/lib
+root/public/assets
 *.log
 .env
